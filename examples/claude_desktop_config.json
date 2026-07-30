@@ -1,0 +1,26 @@
+{
+  "$comment": [
+    "Claude Desktop MCP configuration. Merge the `trading212` entry into your",
+    "existing claude_desktop_config.json, replacing the placeholder key.",
+    "",
+    "macOS:   ~/Library/Application Support/Claude/claude_desktop_config.json",
+    "Windows: %APPDATA%\\Claude\\claude_desktop_config.json",
+    "",
+    "Keep T212_ENVIRONMENT on `demo` until you have seen what the assistant",
+    "does with the data. Switching to `live` needs a separate API key.",
+    "",
+    "T212_API_SECRET is only needed if your key was issued as a key/secret",
+    "pair. Omit it for an older single-token key."
+  ],
+  "mcpServers": {
+    "trading212": {
+      "command": "npx",
+      "args": ["-y", "t212-mcp"],
+      "env": {
+        "T212_API_KEY": "replace-with-your-key",
+        "T212_ENVIRONMENT": "demo",
+        "T212_LOG_LEVEL": "info"
+      }
+    }
+  }
+}
