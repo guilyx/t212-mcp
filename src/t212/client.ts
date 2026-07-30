@@ -3,6 +3,8 @@ import type { z } from "zod";
 import { API_PATH_PREFIX, type Config, configSecrets } from "../config.js";
 import { type Logger, silentLogger } from "../logger.js";
 import { redactLiterals } from "../redact.js";
+import { TtlCache, ttlForGroup } from "./cache.js";
+import { RateLimiter } from "./rate-limit.js";
 import {
   errorFromStatus,
   T212NetworkError,
@@ -23,6 +25,13 @@ export interface RequestOptions<T> {
   signal?: AbortSignal;
   /** Label used in logs; defaults to the path. */
   operation?: string;
+  /**
+   * Endpoint group sharing an upstream rate-limit budget, and deciding how
+   * long the response may be cached. Omitted means unlimited and uncached.
+   */
+  group?: string;
+  /** Overrides the group's default cache lifetime. */
+  cacheTtlMs?: number;
 }
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -35,6 +44,8 @@ export interface T212ClientOptions {
   sleep?: (ms: number) => Promise<void>;
   /** Injected in tests to make backoff jitter deterministic. */
   random?: () => number;
+  rateLimiter?: RateLimiter;
+  cache?: TtlCache;
 }
 
 const BASE_BACKOFF_MS = 500;
@@ -127,6 +138,8 @@ export class T212Client {
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly random: () => number;
   private readonly secrets: readonly string[];
+  private readonly rateLimiter: RateLimiter;
+  private readonly cache: TtlCache;
 
   constructor(options: T212ClientOptions) {
     this.config = options.config;
@@ -135,14 +148,30 @@ export class T212Client {
     this.sleep = options.sleep ?? defaultSleep;
     this.random = options.random ?? Math.random;
     this.secrets = configSecrets(this.config);
+    this.rateLimiter = options.rateLimiter ?? new RateLimiter();
+    this.cache = options.cache ?? new TtlCache();
   }
 
   /**
-   * Performs a GET, retrying transient failures up to the configured limit.
+   * Performs a GET, serving from cache when possible, waiting for rate-limit
+   * budget, and retrying transient failures up to the configured limit.
    */
   async get<T>(options: RequestOptions<T>): Promise<T> {
-    const operation = options.operation ?? options.path;
     const url = buildUrl(this.config.baseUrl, options.path, options.query);
+    const ttlMs =
+      options.cacheTtlMs ??
+      ttlForGroup(options.group ?? "", this.config.cacheTtlMs);
+
+    if (ttlMs <= 0) return this.send(url, options);
+
+    // The cache de-duplicates concurrent callers as well as sequential ones,
+    // which matters most for the endpoints with the tightest limits.
+    return this.cache.fetch(url, ttlMs, () => this.send(url, options));
+  }
+
+  /** Runs the retry loop for one request. */
+  private async send<T>(url: string, options: RequestOptions<T>): Promise<T> {
+    const operation = options.operation ?? options.path;
     const maxAttempts = this.config.maxRetries + 1;
 
     let lastError: T212Error | undefined;
@@ -151,6 +180,17 @@ export class T212Client {
       const log = this.logger.child({ operation, attempt });
 
       try {
+        if (options.group) {
+          const waitMs = this.rateLimiter.timeUntilAvailable(options.group);
+          if (waitMs > 0) {
+            log.debug("waiting for rate-limit budget", {
+              group: options.group,
+              waitMs,
+            });
+          }
+          await this.rateLimiter.acquire(options.group);
+        }
+
         const body = await this.attempt(url, options.signal);
         return this.parse(body, options.schema, options.path, operation);
       } catch (error) {
