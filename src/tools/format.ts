@@ -50,8 +50,17 @@ export function percent(value: number | null | undefined): string {
   return `${(value * 100).toFixed(2)}%`;
 }
 
-export function pluralise(count: number, singular: string): string {
-  return `${count} ${singular}${count === 1 ? "" : "s"}`;
+/**
+ * Naive `+s` pluralisation, with an override for words it would mangle
+ * ("match" → "matchs"). Explicit beats clever here: an inflection library
+ * would be a dependency for four call sites.
+ */
+export function pluralise(
+  count: number,
+  singular: string,
+  plural = `${singular}s`,
+): string {
+  return `${count} ${count === 1 ? singular : plural}`;
 }
 
 /**
