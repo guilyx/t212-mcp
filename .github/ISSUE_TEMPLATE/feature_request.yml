@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a new tool, resource or configuration option
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: >
+        If this maps to a Trading 212 API endpoint, link the documentation for
+        it.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: >
+            This request is read-only. Order placement and other
+            state-changing endpoints are out of scope for this server.
+          required: true
