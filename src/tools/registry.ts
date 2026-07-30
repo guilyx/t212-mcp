@@ -1,6 +1,7 @@
 import type { Config } from "../config.js";
 import { accountTools } from "./account.js";
 import { historyTools } from "./history.js";
+import { pieTools } from "./pies.js";
 import { instrumentTools } from "./instruments.js";
 import { portfolioTools } from "./portfolio.js";
 import type { ToolDefinition } from "./types.js";
@@ -19,5 +20,6 @@ export function buildTools(_config: Config): ToolDefinition[] {
     ...portfolioTools,
     ...instrumentTools,
     ...historyTools,
+    ...pieTools,
   ];
 }
