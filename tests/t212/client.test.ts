@@ -16,6 +16,7 @@ import {
   T212ServerError,
   T212TimeoutError,
 } from "../../src/t212/errors.js";
+import { RateLimiter } from "../../src/t212/rate-limit.js";
 import { jsonResponse, testConfig } from "../helpers/config.js";
 
 const schema = z.object({ free: z.number(), total: z.number() });
@@ -53,6 +54,9 @@ function harness(
       },
       // Midpoint of the jitter window keeps backoff assertions exact.
       random: () => 0.5,
+      // Rate limiting has its own tests. Leaving it on here would make every
+      // second request in a group wait out a real multi-second window.
+      rateLimiter: new RateLimiter({ enabled: false }),
     }),
   };
 }
@@ -387,5 +391,140 @@ describe("T212Client logging", () => {
     expect(output).toContain("request failed");
     expect(output).toContain('"willRetry":true');
     expect(output).not.toContain("test-api-key-000");
+  });
+});
+
+describe("T212Client caching", () => {
+  it("serves a repeat call for a cacheable group from cache", async () => {
+    const { client, calls } = harness([jsonResponse({ free: 1, total: 1 })]);
+
+    await client.get({ ...request, group: "instruments" });
+    await client.get({ ...request, group: "instruments" });
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it("does not cache groups whose data can move", async () => {
+    const { client, calls } = harness([
+      jsonResponse({ free: 1, total: 1 }),
+      jsonResponse({ free: 2, total: 2 }),
+    ]);
+
+    await client.get({ ...request, group: "orders" });
+    await client.get({ ...request, group: "orders" });
+
+    expect(calls).toHaveLength(2);
+  });
+
+  it("does not cache a request with no group", async () => {
+    const { client, calls } = harness([
+      jsonResponse({ free: 1, total: 1 }),
+      jsonResponse({ free: 1, total: 1 }),
+    ]);
+
+    await client.get(request);
+    await client.get(request);
+
+    expect(calls).toHaveLength(2);
+  });
+
+  it("keys the cache on the full URL, query included", async () => {
+    const { client, calls } = harness([
+      jsonResponse({ free: 1, total: 1 }),
+      jsonResponse({ free: 2, total: 2 }),
+    ]);
+
+    await client.get({ ...request, group: "instruments", query: { q: "a" } });
+    await client.get({ ...request, group: "instruments", query: { q: "b" } });
+
+    expect(calls).toHaveLength(2);
+  });
+
+  it("collapses concurrent identical calls into one request", async () => {
+    const { client, calls } = harness([jsonResponse({ free: 1, total: 1 })]);
+
+    await Promise.all([
+      client.get({ ...request, group: "instruments" }),
+      client.get({ ...request, group: "instruments" }),
+      client.get({ ...request, group: "instruments" }),
+    ]);
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it("honours an explicit TTL override", async () => {
+    const { client, calls } = harness([jsonResponse({ free: 1, total: 1 })]);
+
+    await client.get({ ...request, cacheTtlMs: 60_000 });
+    await client.get({ ...request, cacheTtlMs: 60_000 });
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it("does not cache a failed request", async () => {
+    const { client, calls } = harness([
+      jsonResponse("boom", { status: 500 }),
+      jsonResponse("boom", { status: 500 }),
+      jsonResponse("boom", { status: 500 }),
+      jsonResponse({ free: 9, total: 9 }),
+    ]);
+
+    await expect(
+      client.get({ ...request, group: "instruments" }),
+    ).rejects.toBeInstanceOf(T212ServerError);
+
+    await expect(
+      client.get({ ...request, group: "instruments" }),
+    ).resolves.toEqual({ free: 9, total: 9 });
+
+    expect(calls).toHaveLength(4);
+  });
+});
+
+describe("T212Client rate limiting", () => {
+  it("waits for budget before a second call in the same group", async () => {
+    const waits: number[] = [];
+    let clock = 1_000_000;
+    const client = new T212Client({
+      config: testConfig(),
+      fetch: () => Promise.resolve(jsonResponse({ free: 1, total: 1 })),
+      sleep: () => Promise.resolve(),
+      rateLimiter: new RateLimiter({
+        now: () => clock,
+        sleep: (ms) => {
+          waits.push(ms);
+          clock += ms;
+          return Promise.resolve();
+        },
+      }),
+    });
+
+    await client.get({ ...request, group: "orders" });
+    await client.get({ ...request, group: "orders" });
+
+    expect(waits).toEqual([5_000]);
+  });
+
+  it("does not spend budget on a cache hit", async () => {
+    const waits: number[] = [];
+    let clock = 1_000_000;
+    const client = new T212Client({
+      config: testConfig(),
+      fetch: () => Promise.resolve(jsonResponse({ free: 1, total: 1 })),
+      sleep: () => Promise.resolve(),
+      rateLimiter: new RateLimiter({
+        now: () => clock,
+        sleep: (ms) => {
+          waits.push(ms);
+          clock += ms;
+          return Promise.resolve();
+        },
+      }),
+    });
+
+    await client.get({ ...request, group: "instruments" });
+    await client.get({ ...request, group: "instruments" });
+
+    expect(waits).toEqual([]);
   });
 });
