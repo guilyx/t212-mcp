@@ -37,7 +37,14 @@ const integerFromEnv = (min: number, max: number) =>
     .pipe(z.number().int().min(min).max(max));
 
 const rawConfigSchema = z.object({
-  T212_API_KEY: z.string().trim().min(1, "must not be empty"),
+  T212_API_KEY: z
+    .string({
+      error:
+        "is required. Create a key in the Trading 212 app under " +
+        "Settings > API, and pass it in your MCP client's environment.",
+    })
+    .trim()
+    .min(1, "must not be empty"),
   T212_API_SECRET: z.string().trim().min(1).optional(),
   T212_ENVIRONMENT: z.enum(ENVIRONMENTS).default("demo"),
   T212_BASE_URL: z.url({ protocol: /^https?$/ }).optional(),

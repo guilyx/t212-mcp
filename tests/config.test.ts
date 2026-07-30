@@ -164,3 +164,18 @@ describe("describeConfig", () => {
     });
   });
 });
+
+describe("first-run experience", () => {
+  it("tells a new user where to get an API key", () => {
+    // This is the first message anyone sees when the server will not start.
+    let message = "";
+    try {
+      loadConfig({});
+    } catch (caught) {
+      message = (caught as ConfigError).message;
+    }
+
+    expect(message).toContain("T212_API_KEY");
+    expect(message).toContain("Settings > API");
+  });
+});
