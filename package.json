@@ -1,0 +1,70 @@
+{
+  "name": "t212-mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server exposing read-only Trading 212 account, portfolio and market data",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "trading212",
+    "t212",
+    "investing",
+    "portfolio"
+  ],
+  "license": "MIT",
+  "author": "guilyx",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guilyx/t212-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/guilyx/t212-mcp/issues"
+  },
+  "homepage": "https://github.com/guilyx/t212-mcp#readme",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "t212-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  }
+}
