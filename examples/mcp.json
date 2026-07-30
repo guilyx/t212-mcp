@@ -1,0 +1,19 @@
+{
+  "$comment": [
+    "Project-scoped MCP configuration (.mcp.json) for Claude Code and other",
+    "clients that read this format.",
+    "",
+    "Do not commit a real key. Either use ${VAR} expansion as below, with the",
+    "value exported in your shell, or keep this file untracked."
+  ],
+  "mcpServers": {
+    "trading212": {
+      "command": "npx",
+      "args": ["-y", "t212-mcp"],
+      "env": {
+        "T212_API_KEY": "${T212_API_KEY}",
+        "T212_ENVIRONMENT": "demo"
+      }
+    }
+  }
+}
