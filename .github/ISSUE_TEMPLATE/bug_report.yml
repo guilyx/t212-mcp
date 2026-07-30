@@ -1,0 +1,54 @@
+name: Bug report
+description: Something in the MCP server behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste your Trading 212 API key, secret, account number or
+        position data into a public issue.** Redact them before submitting.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include the tool you called and the arguments you passed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: >
+        Run with `T212_LOG_LEVEL=debug`. Logs go to stderr. Redact any
+        identifiers before pasting.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: t212-mcp version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Trading 212 environment
+      options: [demo, live]
+    validations:
+      required: true
+
+  - type: input
+    id: client
+    attributes:
+      label: MCP client
+      placeholder: Claude Desktop 1.x, Claude Code, custom

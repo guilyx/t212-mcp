@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Trading 212 API documentation
+    url: https://docs.trading212.com/api
+    about: Questions about the upstream API itself belong with Trading 212.
+  - name: Security vulnerability
+    url: https://github.com/guilyx/t212-mcp/security/advisories/new
+    about: Report vulnerabilities privately, not as a public issue.
